@@ -1,0 +1,13 @@
+Report
+
+1. How you solved the problem of synchronizing your threads.
+
+2. Why your method is correct (or how it could be made correct).
+
+3. Why your method is efficient (or how it could be improved).
+
+Do not include any program trace output in your report. Instead, you need to give a
+convincing argument in English why your program is correct and efficient, or how it could
+be improved.
+
+(max 5000 characters)
