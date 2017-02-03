@@ -1,2 +1,8 @@
-# project_marking_problem
-Solution in C to the project marking problem
+## Project Marking Problem
+
+A C solution to the Project Marking Problem.
+
+### Build
+
+- Ensure Make is installed on your system
+- Simply run `make`
