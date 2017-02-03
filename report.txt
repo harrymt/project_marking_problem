@@ -1,6 +1,18 @@
-Report
+The Project Marking Problem
+Harry Mumford-Turner
 
 1. How you solved the problem of synchronizing your threads.
+- For synchronizing threads
+  - Single Mutex
+  - Single condidition
+  - Some global variables
+    - Total number of markers available
+    - Total number of students finished
+    - A list of states for each marker, busy | idle
+    - A list of states for each demo, on | off
+    - A list of markers a student has grabbed
+
+- Add if (err) { conditions!
 
 2. Why your method is correct (or how it could be made correct).
 
