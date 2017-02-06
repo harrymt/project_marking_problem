@@ -39,7 +39,11 @@ struct timeval starttime;
  * You can also create functions of your own.
  */
 
+/* Lock for marker when waiting to be grabbed by a student */
+pthread_mutex_t marker_lock;
 
+extern int nanosleep();
+extern int random();
 
 /*
  * timenow(): returns current simulated time in "minutes" (cs).
@@ -87,42 +91,59 @@ void *marker(void *arg) {
      * marker is grabbed - and before the printf statements referencing it are
      * executed.
      */
-    int studentID;
+    int studentID = 0;
 
     /* 1. Enter the lab. */
     printf("%d marker %d: enters lab\n", timenow(), markerID);
 
-    /* A marker marks up to N projects. */
-    /* 2. Repeat (N times).
-     *    (a) Wait to be grabbed by a student.
-     *    (b) Wait for the student's demo to begin
-     *        (you may not need to do anything here).
-     *    (c) Wait for the demo to finish.
-     *        Do not just wait a given time -
-     *        let the student signal when the demo is over.
-     *    (d) Exit the lab.
+    /**
+     * Job ... TODO
      */
-    /*
-     * 3. If the end of the session approaches (i.e. there is no time
-     *    to start another demo) then the marker waits for the current
-     *    demo to finish (if they are currently attending one) and then
-     *    exits the lab.
-     */
+    int job;
 
-    /* The following line shall be printed when a marker is grabbed by a student. */
-    printf("%d marker %d: grabbed by student %d (job %d)\n", timenow(), markerID, studentID, job + 1);
+    /* A marker marks up to N projects.
+     *
+     * 2. Repeat (N times).
+    */
+    for (job = 0; job < parameters.N; job++) {
+        /* (a) Wait to be grabbed by a student. */
+        pthread_mutex_lock(&marker_lock);
+        pthread_mutex_unlock(&marker_lock);
+        /*
+         *    (b) Wait for the student's demo to begin
+         *        (you may not need to do anything here).
+         *    (c) Wait for the demo to finish.
+         *        Do not just wait a given time -
+         *        let the student signal when the demo is over.
+         *    (d) Exit the lab.
+         */
 
-    /* The following line shall be printed when a marker has finished attending a demo. */
-    printf("%d marker %d: finished with student %d (job %d)\n", timenow(), markerID, studentID, job + 1);
+        /*
+         * 3. If the end of the session approaches (i.e. there is no time
+         *    to start another demo) then the marker waits for the current
+         *    demo to finish (if they are currently attending one) and then
+         *    exits the lab.
+         */
+
+        /* The following line shall be printed when a marker is grabbed by a student. */
+        printf("%d marker %d: grabbed by student %d (job %d)\n", timenow(), markerID, studentID, job + 1);
+
+        /* The following line shall be printed when a marker has finished attending a demo. */
+        printf("%d marker %d: finished with student %d (job %d)\n", timenow(), markerID, studentID, job + 1);
+
+    }
+
 
     /*
      * When the marker exits the lab, exactly one of the following two lines shall be
      * printed, depending on whether the marker has finished all their jobs or there
      * is no time to complete another demo.
      */
-
-    printf("%d marker %d: exits lab (finished %d jobs)\n", timenow(), markerID, parameters.N);
-    printf("%d marker %d: exits lab (timeout)\n", timenow(), markerID);
+    if(job == parameters.N) {
+        printf("%d marker %d: exits lab (finished %d jobs)\n", timenow(), markerID, parameters.N);
+    } else {
+        printf("%d marker %d: exits lab (timeout)\n", timenow(), markerID);
+    }
 
     return NULL;
 }
@@ -203,8 +224,14 @@ void run() {
 
     /*
      * When we reach here, this is the latest time a new demo could start.
-     * You might want to do something here or soon after.
+     *
+     * Mark the end of a session.
      */
+    // timeout = 1; // TODO rename to session_end
+    // pthread_cond_broadcast(&student_grab);
+    // pthread_cond_broadcast(&student_ready);
+    // pthread_cond_broadcast(&student_finish);
+
 
     /* Wait for student threads to finish */
     for (i = 0; i<parameters.S; i++) {
