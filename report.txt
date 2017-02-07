@@ -12,7 +12,8 @@ Harry Mumford-Turner
     - A list of states for each demo, on | off
     - A list of markers a student has grabbed
 
-- Add if (err) { conditions!
+- Add if (err) { conditions! }
+  - Added around the starting and ending of threads
 
 2. Why your method is correct (or how it could be made correct).
 
