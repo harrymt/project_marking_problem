@@ -43,7 +43,7 @@ struct timeval starttime;
 pthread_mutex_t marker_lock;
 
 extern int nanosleep();
-extern int random();
+extern long int random(void);
 
 /*
  * timenow(): returns current simulated time in "minutes" (cs).
@@ -208,6 +208,10 @@ void run() {
         parameters.D);
     gettimeofday(&starttime, NULL);  /* Save start of simulated time */
 
+    /* Initilise Mutex */
+    // pthread_mutext_init(&marker_lock, NULL);
+
+
     /* Create S student threads */
     for (i = 0; i<parameters.S; i++) {
         studentID[i] = i;
@@ -225,21 +229,16 @@ void run() {
     /*
      * When we reach here, this is the latest time a new demo could start.
      *
-     * Mark the end of a session.
      */
-    // timeout = 1; // TODO rename to session_end
-    // pthread_cond_broadcast(&student_grab);
-    // pthread_cond_broadcast(&student_ready);
-    // pthread_cond_broadcast(&student_finish);
-
 
     /* Wait for student threads to finish */
-    for (i = 0; i<parameters.S; i++) {
+    for (i = 0; i < parameters.S; i++) {
         pthread_join(studentT[i], NULL);
+        // if(timenow() >= parameters.T) { break; } // If timeout signal has occured?
     }
 
     /* Wait for marker threads to finish */
-    for (i = 0; i<parameters.M; i++) {
+    for (i = 0; i < parameters.M; i++) {
         pthread_join(markerT[i], NULL);
     }
 }
