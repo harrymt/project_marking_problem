@@ -73,6 +73,5 @@ All markers are on duty at the beginning of the session and each remains there u
 - Dont submit compiled program
 - Test on LAB machines
 - Don't use busy-waiting
--
 
 
