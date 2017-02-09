@@ -2,6 +2,8 @@
 
 A C solution to the Project Marking Problem.
 
+- TODO: Change printf statements back to how they were
+- TODO: Make the marker threads aware that this is the student ID they are marking
 - TODO: Clean project before submission
 
 ### Build & Run

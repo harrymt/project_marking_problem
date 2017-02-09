@@ -13,6 +13,22 @@
 #include <pthread.h>
 #include <time.h>
 #include <sys/time.h>
+#include <errno.h>
+
+/*
+ * Debug printf statements.
+ * Taken from here: http://stackoverflow.com/a/1941337
+ * Called like
+ *  DEBUG_PRINT(("Hi %d", 1));
+ * Note: The extra parentheses are necessary, because some older C compilers don't support var-args in macros.
+ */
+/* 1: enables extra print statements, 0: disable */
+#define DEBUG 1
+#ifdef DEBUG
+# define DEBUG_PRINT(x) printf x
+#else
+# define DEBUG_PRINT(x) do {} while (0)
+#endif
 
 /*
  * Parameters of the program. The constraints are D < T and
@@ -34,36 +50,45 @@ struct demo_parameters parameters;
 struct timeval starttime;
 
 /*
- * You may wish to place some global variables here.
- * Remember, globals are shared between threads.
- * You can also create functions of your own.
+ * Available markers, for easy comparison.
+ * Mutex needed to lock the variable.
  */
-
-/* Lock for marker when waiting to be grabbed by a student */
-// static pthread_mutex_t marker_lock = PTHREAD_MUTEX_INITIALIZER;
-// pthread_cond_t students_waiting_for_markers_condition;
-// int number_of_finished_markers = 0;
-
-
 int number_of_available_markers = 0;
-int number_of_finished_markers = 0;
-
 pthread_mutex_t marker_available_mutex;
+
+/*
+ * Finished markers, for easy comparison.
+ * Mutex needed to lock the variable.
+ */
+int number_of_finished_markers = 0;
 pthread_mutex_t finished_markers_mutex;
-pthread_mutex_t demo_end_mutex;
+
+/*
+ * Condition variable for students waiting
+ * for markers to come available.
+ */
 pthread_cond_t signal_students_waiting_cv;
+
+/*
+ * Condition variable for markers waiting
+ * to be grabbed by students.
+ */
 pthread_cond_t grabbed_wait_cv;
+
+/*
+ * Mutex and condition variable for markers
+ * waiting until the demo has ended.
+ */
+pthread_mutex_t demo_end_mutex;
 pthread_cond_t demo_end_cv;
 
+/*
+ * Array of available markers.
+ * arr_markers[studentID][markerID]
+ *   arr_markers[MARKER_ID] = STUDENT_ID // If -2 then finished jobs, if -1 then available, if positive 0+ then STUDENT_ID
+ */
 #define max_markers 100
-
-// If its -2 left the lab
-// If its -1 its available
-// If its positive, then its the student ID its marking
-int arr_markers[max_markers]; // Maps between the MarkerID and its availability
-
-// extern int nanosleep();
-// extern long int random(void);
+int arr_markers[max_markers];
 
 /*
  * timenow(): returns current simulated time in "minutes" (cs).
@@ -76,6 +101,7 @@ int timenow() {
     gettimeofday(&now, NULL);
     return (now.tv_sec - starttime.tv_sec) * 100 + (now.tv_usec - starttime.tv_usec) / 10000;
 }
+
 
 /* delay(t): delays for t "minutes" (cs) */
 void delay(int t) {
@@ -115,10 +141,10 @@ void *marker(void *arg) {
      * marker is grabbed - and before the printf statements referencing it are
      * executed.
      */
-    int studentID = 0;
+    int studentID = 0; /* arr_markers[markerID] == Student ID or -1 or -2 */
 
     /* 1. Enter the lab. */
-    printf("%d marker %d: enters lab m1\n", timenow(), markerID);
+    printf("%d marker %d: enters lab\n", timenow(), markerID);
 
     /**
      * The current job number, i.e. the demo to mark.
@@ -131,52 +157,71 @@ void *marker(void *arg) {
     */
     for (job = 0; job < parameters.N; job++) {
 
-        /*
-         *    If the end of the session approaches (i.e. there is no time
-         *    to start another demo) then the marker waits for the current
-         *    demo to finish (if they are currently attending one) and then
-         *    exits the lab.
-         */
-        if(timenow() >= parameters.T - parameters.D) { printf("%d Not enough time for a demo, jobID %d", timenow(), job); break; }
+      /*
+       *    If the end of the session approaches (i.e. there is no time
+       *    to start another demo) then the marker waits for the current
+       *    demo to finish (if they are currently attending one) and then
+       *    exits the lab.
+       */
+      if(timenow() >= parameters.T - parameters.D) { printf("%d Not enough time for a demo, jobID %d", timenow(), job); break; }
 
-        /* Become available for students to grab */
-        pthread_mutex_lock(&marker_available_mutex);
-        number_of_available_markers++;
-        /* Signal all students waiting, that there is another marker free */
-        pthread_cond_signal(&signal_students_waiting_cv);
+      /* Become available for students to grab */
+      pthread_mutex_lock(&marker_available_mutex);
+      number_of_available_markers++;
+      printf("%d marker %d: available. Total Available: %d\n", timenow(), markerID, number_of_available_markers);
+
+      /* Signal all students waiting, that there is another marker free */
+      pthread_cond_broadcast(&signal_students_waiting_cv);
+      pthread_mutex_unlock(&marker_available_mutex);
+
+      /* (a) Wait to be grabbed by a student. */
+      pthread_mutex_lock(&marker_available_mutex);
+      if(ETIMEDOUT == pthread_cond_wait(&grabbed_wait_cv, &marker_available_mutex)) {
         pthread_mutex_unlock(&marker_available_mutex);
-
-        /* (a) Wait to be grabbed by a student. */
-        pthread_mutex_lock(&marker_available_mutex);
-        pthread_cond_wait(&grabbed_wait_cv, &marker_available_mutex);
-
-        /* The following line shall be printed when a marker is grabbed by a student. */
-        printf("%d marker %d: grabbed by student %d (job %d) m2\n", timenow(), markerID, studentID, job + 1);
-
-        number_of_available_markers--;
+        printf("%d marker %d: ETIMEDOUT (job %d)\n", timenow(), markerID, job);
+        return NULL;
+      }
+      if(timenow() >= (parameters.T - parameters.D)) { /* If time has run out */
         pthread_mutex_unlock(&marker_available_mutex);
+        printf("%d marker %d: Has timed out, wasn't grabbed by a student in time (job %d)\n", timenow(), markerID, job);
+        return NULL;
+      }
 
-        /*
-         *  (b) Wait for the student's demo to begin
-         *  Nothing todo here
-         */
+      /* The following line shall be printed when a marker is grabbed by a student. */
+      printf("%d marker %d: grabbed by student %d (job %d)\n", timenow(), markerID, studentID, job + 1);
+      number_of_available_markers--;
+      pthread_mutex_unlock(&marker_available_mutex);
 
-        /*
-         * (c) Wait for the demo to finish.
-         *     Do not just wait a given time
-         *     let the student signal when the demo is over.
-         */
-         pthread_mutex_lock(&demo_end_mutex);
-         pthread_cond_wait(&demo_end_cv, &demo_end_mutex);
+      /*
+       *  (b) Wait for the student's demo to begin
+       *  Nothing todo here
+       */
 
-         /* The following line shall be printed when a marker has finished attending a demo. */
-         printf("%d marker %d: finished with student %d (job %d) m3\n", timenow(), markerID, studentID, job + 1);
+      /*
+       * (c) Wait for the demo to finish.
+       *     Do not just wait a given time
+       *     let the student signal when the demo is over.
+       */
+       pthread_mutex_lock(&demo_end_mutex);
+       if(ETIMEDOUT == pthread_cond_wait(&demo_end_cv, &demo_end_mutex)) {
+        pthread_mutex_unlock(&demo_end_mutex);
+        printf("%d marker %d: ETIMEDOUT (job %d)\n", timenow(), markerID, job);
+        return NULL;
+      }
+      if(timenow() > (parameters.T - parameters.D)) { /* If time has run out */
+        pthread_mutex_unlock(&demo_end_mutex);
+        printf("%d marker %d: Timed out during demo! (job %d)\n", timenow(), markerID, job);
+        return NULL;
+      }
 
-         pthread_mutex_unlock(&demo_end_mutex);
+       /* The following line shall be printed when a marker has finished attending a demo. */
+       printf("%d marker %d: finished with student %d (job %d)\n", timenow(), markerID, studentID, job + 1);
 
-        /*
-         *  (d) Exit the lab when all jobs have been completed
-         */
+       pthread_mutex_unlock(&demo_end_mutex);
+
+      /*
+       *  (d) Exit the lab when all jobs have been completed
+       */
     }
 
     /*
@@ -185,9 +230,9 @@ void *marker(void *arg) {
      * is no time to complete another demo.
      */
     if(job == parameters.N) {
-        printf("%d marker %d: exits lab (finished %d jobs) m4a\n", timenow(), markerID, parameters.N);
+        printf("%d marker %d: exits lab (finished %d jobs)\n", timenow(), markerID, parameters.N);
     } else {
-        printf("%d marker %d: exits lab (timeout) m4b\n", timenow(), markerID);
+        printf("%d marker %d: exits lab (timeout)\n", timenow(), markerID);
     }
 
     pthread_mutex_lock(&finished_markers_mutex);
@@ -206,11 +251,11 @@ void *student(void *arg) {
     int studentID = *(int *)arg;
 
     /* 1. Panic! */
-    printf("%d student %d: starts panicking 1\n", timenow(), studentID);
+    printf("%d student %d: starts panicking\n", timenow(), studentID);
     panic();
 
     /* 2. Enter the lab. */
-    printf("%d student %d: enters lab 2\n", timenow(), studentID);
+    printf("%d student %d: enters lab\n", timenow(), studentID);
 
     /* If there is still time to demo and there are some markers that haven't finished yet */
     pthread_mutex_lock(&finished_markers_mutex);
@@ -226,25 +271,46 @@ void *student(void *arg) {
     /* Wait until there are K markers available */
     pthread_mutex_lock(&marker_available_mutex);
     while(number_of_available_markers < parameters.K) {
-      pthread_cond_wait(&signal_students_waiting_cv, &marker_available_mutex);
+      printf("%d student %d: Waiting until markers (%d out of %d) are available.\n",  timenow(), studentID, number_of_available_markers, parameters.K);
+
+      if(ETIMEDOUT == pthread_cond_wait(&signal_students_waiting_cv, &marker_available_mutex)) {
+        pthread_mutex_unlock(&marker_available_mutex);
+        printf("%d student %d: Condition wait timeout (timedout). available:%d\n",  timenow(), studentID, number_of_available_markers);
+        return NULL;
+      }
+
+      if(timenow() >= (parameters.T - parameters.D)) { /* If time has run out */
+         pthread_mutex_unlock(&marker_available_mutex);
+         printf("%d student %d: Didn't find enough markers available, exiting (timedout). available:%d\n",  timenow(), studentID, number_of_available_markers);
+         return NULL;
+      } else {
+         printf("%d student %d: Waiting timeout but still time to do stuff. available:%d\n",  timenow(), studentID, number_of_available_markers);
+      }
     }
+    printf("%d student %d: Found enough markers available:%d\n", timenow(), studentID, number_of_available_markers);
+
+    int marker_list[parameters.K]; /* List of markers that are assigned to this student */
 
     /* 3. Now grab K markers. */
     int i, grab_count = 0;
     for(i = 0; i < max_markers; i++) {
       if(arr_markers[i] == -1) { /* If a marker is free */
-        arr_markers[i] = studentID; /* Grab them */
+        arr_markers[i] = studentID; /* Grab them */ /* i == MARKER_ID */
+        marker_list[grab_count] = i; /* assign the marker ID to a temp list */
         grab_count++;
         /* Don't grab anymore markers than we need */
         if(grab_count == parameters.K) { break; }
       }
     }
+    /* Signal all grabbed markers to proceed */
+    pthread_cond_broadcast(&grabbed_wait_cv);
+
     pthread_mutex_unlock(&marker_available_mutex);
 
 
     /* If we have enough markers for our demo! */
     if(grab_count != parameters.K) {
-      printf("Error something went horribly wrong, we didn't have enough markers for a demo! GrabCount: %d, ", grab_count);
+      printf("Error something went horribly wrong, we didn't have enough markers for a demo! GrabCount: %d\n", grab_count);
       return NULL;
     }
 
@@ -256,30 +322,28 @@ void *student(void *arg) {
      * left to do a full demo, the following three lines shall not be executed
      * and the student proceeds to step 5.
      */
-    printf("%d student %d: starts demo 3\n", timenow(), studentID);
+    printf("%d student %d: starts demo\n", timenow(), studentID);
     demo();
-    printf("%d student %d: ends demo 4\n", timenow(), studentID);
+    printf("%d student %d: ends demo\n", timenow(), studentID);
 
     /* Release all markers by signalling them */
     pthread_mutex_lock(&marker_available_mutex);
-    for(i = 0; i < max_markers; i++) {
-      if(arr_markers[i] == studentID) { /* If a marker is assigned to this student */
-        arr_markers[i] = -1; /* Set it to be free */
-      }
+    for(i = 0; i < parameters.K; i++) {
+      int marker_id = marker_list[i];
+      arr_markers[marker_id] = -1; // Set the marker to be free
     }
     pthread_mutex_unlock(&marker_available_mutex);
 
     /* Now signal all markers to be free! */
-    pthread_cond_signal(&demo_end_cv);
+    pthread_cond_broadcast(&demo_end_cv);
 
     /* 5. Exit the lab. */
-    printf("%d student %d: exits lab (finished) 5a\n", timenow(), studentID);
-
+    printf("%d student %d: exits lab (finished)\n", timenow(), studentID);
     return NULL;
 }
 
-/* The function that runs the session.
- * You MAY want to modify this function.
+/*
+ * The function that runs the session.
  */
 void run() {
 
@@ -306,18 +370,23 @@ void run() {
 
     /* Create S student threads */
     for (i = 0; i<parameters.S; i++) {
+      DEBUG_PRINT(("Creating student %d thread\n", i));
         studentID[i] = i;
         if(pthread_create(&studentT[i], NULL, student, &studentID[i])) {
-          fprintf(stderr, "Error creating student thread, studentID %d\n", i);
+          fprintf(stderr, "Error creating student thread, student %d\n", i);
           exit(1);
         }
     }
 
     /* Create M marker threads */
-    for (i = 0; i<parameters.M; i++) {
+    for (i = 0; i < parameters.M; i++) {
+      DEBUG_PRINT(("Creating marker %d thread\n", i));
+
         markerID[i] = i;
+        arr_markers[i] = -1; /* init all to be free -1 */
+
         if(pthread_create(&markerT[i], NULL, marker, &markerID[i])) {
-          fprintf(stderr, "Error creating marker thread, markerID %d\n", i);
+          fprintf(stderr, "Error creating marker thread, marker %d\n", i);
           exit(1);
         }
     }
@@ -327,26 +396,43 @@ void run() {
 
     /*
      * When we reach here, this is the latest time a new demo could start.
-     *
      */
+    DEBUG_PRINT(("%d ---- No more demos can start ----\n> Now ending all threads\n", timenow()));
+
+
 
     /* Wait for student threads to finish */
     for (i = 0; i < parameters.S; i++) {
-        if(pthread_join(studentT[i], NULL)) {
-          fprintf(stderr, "Error ending student thread studentID %d\n", i);
-          exit(1);
-        }
+      /* Signal all students waiting for a session that they have to leave. */
+      pthread_cond_broadcast(&grabbed_wait_cv);
+
+      DEBUG_PRINT(("> Trying to end student thread %d\n", i));
+      if(pthread_join(studentT[i], NULL)) {
+        fprintf(stderr, "Error ending student thread student %d\n", i);
+        exit(1);
+      }
 
         // if(timenow() >= parameters.T) { break; } // If timeout signal has occured?
     }
 
+    DEBUG_PRINT(("> %d All student threads ended.\n", timenow()));
+
     /* Wait for marker threads to finish */
     for (i = 0; i < parameters.M; i++) {
+
+      /* Signal all markers waiting to leave, if they haven't started yet. */
+      pthread_cond_broadcast(&grabbed_wait_cv);
+      pthread_cond_broadcast(&demo_end_cv);
+
+      DEBUG_PRINT(("> Trying to end marker thread %d\n", i));
       if(pthread_join(markerT[i], NULL)) {
-        fprintf(stderr, "Error ending student thread markerID %d\n", i);
+        fprintf(stderr, "Error ending student thread marker %d\n", i);
         exit(1);
       }
     }
+
+
+    DEBUG_PRINT(("> %d SUCCESS! Ended all threads, cleaning up mutexes\n", timenow()));
 
     /* Cleanup and exit */
     pthread_mutex_destroy(&marker_available_mutex);

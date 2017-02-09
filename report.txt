@@ -19,6 +19,8 @@ Harry Mumford-Turner
 
 3. Why your method is efficient (or how it could be improved).
 
+  - Using Semaphores!
+
 Do not include any program trace output in your report. Instead, you need to give a
 convincing argument in English why your program is correct and efficient, or how it could
 be improved.

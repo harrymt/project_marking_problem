@@ -23,8 +23,9 @@ SOURCE=demo
 # 1 marker required for 1 demo, K=1, a marker does 1 demos, N=1
 # To have enough time to run all demos, the session must be D < T, T=1
 # S M K N T D
-# 1 1 1 1 2 1
-PARAMETERS=1 2 1 1 2 1
+# 1 2 1 1 2 1
+
+PARAMETERS=2 1 1 2 4 2
 
 # Can add -O3 to add optimisations // -l pthread // std=c99
 CC_OPTS=-pthread -Wall -pedantic -Wextra
