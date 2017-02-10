@@ -54,14 +54,14 @@ struct timeval starttime;
  * Mutex needed to lock the variable.
  */
 int number_of_available_markers = 0;
-pthread_mutex_t marker_available_mutex;
+pthread_mutex_t marker_available_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /*
  * Finished markers, for easy comparison.
  * Mutex needed to lock the variable.
  */
 int number_of_finished_markers = 0;
-pthread_mutex_t finished_markers_mutex;
+pthread_mutex_t finished_markers_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /*
  * Condition variable for students waiting
@@ -79,7 +79,7 @@ pthread_cond_t grabbed_wait_cv;
  * Mutex and condition variable for markers
  * waiting until the demo has ended.
  */
-pthread_mutex_t demo_end_mutex;
+pthread_mutex_t demo_end_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t demo_end_cv;
 
 /*
@@ -310,6 +310,7 @@ void *student(void *arg) {
     }
     /* If we have enough markers for our demo! */
     if(grab_count != parameters.K) {
+      pthread_mutex_unlock(&marker_available_mutex);
       DEBUG_PRINT(("> Error something went horribly wrong, we didn't have enough markers for a demo! GrabCount: %d\n", grab_count));
       return NULL;
     }
@@ -338,10 +339,11 @@ void *student(void *arg) {
       int marker_id = marker_list[i];
       arr_markers[marker_id] = -1; // Set the marker to be free
     }
-    pthread_mutex_unlock(&marker_available_mutex);
-
     /* Now signal all markers to be free! */
     pthread_cond_broadcast(&demo_end_cv);
+
+    pthread_mutex_unlock(&marker_available_mutex);
+
 
     /* 5. Exit the lab. */
     printf("%d student %d: exits lab (finished)\n", timenow(), studentID);
@@ -354,9 +356,9 @@ void *student(void *arg) {
 void run() {
 
     /* Initialize mutex and condition variable objects */
-    pthread_mutex_init(&marker_available_mutex, NULL);
-    pthread_mutex_init(&finished_markers_mutex, NULL);
-    pthread_mutex_init(&demo_end_mutex, NULL);
+    // pthread_mutex_init(&marker_available_mutex, NULL);
+    // pthread_mutex_init(&finished_markers_mutex, NULL);
+    // pthread_mutex_init(&demo_end_mutex, NULL);
     pthread_cond_init (&signal_students_waiting_cv, NULL);
     pthread_cond_init (&grabbed_wait_cv, NULL);
     pthread_cond_init (&demo_end_cv, NULL);

@@ -26,3 +26,9 @@ convincing argument in English why your program is correct and efficient, or how
 be improved.
 
 (max 5000 characters)
+
+
+
+- DATARACES ARE BAD
+- IF YOU WANT TO HAVE SOMETHING YOU WANT TO WAIT FOR, YOU WANT TO LOCK OR WAIT UNTIL SOMEONE HAS CLEARED IT OUT FOR YOU
+- ALTERNATIVE METHOD IS TO USE SEMAPHORES!

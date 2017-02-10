@@ -16,6 +16,7 @@ SOURCE=demo
 # To have enough time to run all demos, the session must be D < T, T=4
 # S M K N T D
 # 2 1 1 2 4 2
+CASE_1=2 1 1 2 4 2
 
 ## USE CASE #2
 # Demos take 1 minutes, D=1
@@ -24,6 +25,7 @@ SOURCE=demo
 # To have enough time to run all demos, the session must be D < T, T=1
 # S M K N T D
 # 1 1 1 1 2 1
+CASE_2=1 1 1 1 2 1
 
 ## USE CASE #3
 # TIMEOUT, complete 1 demo
@@ -33,6 +35,7 @@ SOURCE=demo
 # To have enough time to run at least 1 demos, the session must be D < T, T=3
 # S M K N T D
 # 1 1 1 3 3 2
+CASE_3=1 1 1 3 3 2
 
 ## USE CASE #4
 # Multiple Markers for multiple demos (2 demos, timeout after 3)
@@ -42,15 +45,23 @@ SOURCE=demo
 # To have enough time to run at least 1 demos, the session must be D < T, T=3
 # S M K N T D
 # 3 3 2 2 4 2
+CASE_4=3 3 2 2 4 2
 
 PARAMETERS=3 3 2 2 4 2
+
 
 # Can add -O3 to add optimisations // -l pthread // std=c99
 CC_OPTS=-pthread -Wall -pedantic -Wextra
 
 # First instruction is default
 all: build permissions
-	./$(SOURCE) $(PARAMETERS)
+	./$(SOURCE) $(CASE_2)
+
+tests:
+	./$(SOURCE) $(CASE_1) && \
+	./$(SOURCE) $(CASE_2) && \
+	./$(SOURCE) $(CASE_3) && \
+	./$(SOURCE) $(CASE_4)
 
 permissions:
 	chmod 777 $(SOURCE)
