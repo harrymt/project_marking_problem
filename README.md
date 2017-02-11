@@ -1,32 +1,10 @@
 ## Project Marking Problem
 
 A C solution to the Project Marking Problem.
+TODO
+  - Test to see if we can remove any print statements from mutex locks, e.g. use local variables
+  - Clean project
 
-- TODO: Check return statements OF ALL LOCKS AND ALL UNLCOKS!
-- TODO: use pthread_mutex_trylock() to see if the thread is locked, if its locked, then unlock it!! add rhis in the final for loops, but dont change it to whenever you lock!
-- TODO: Check the locks are not locked before we lock the mutex!!! Put into functions!
-- TODO: Clean project before submission
-- TODO: Check to see if we can remove statements out of every mutex, try and remove printf statements outside of the mutex locks!
-- TODO: Check bug where marker grabs a student with id -1 (add another check!)
-- TODO: When printing out e.g. 'n jobs done', get a local varialble, inside of the mutex, then print outside of the lock
-- TODO: Busy waiting, is while(x) { lock(); if(y)x = false; unlock(); } NEVER DO THIS IN THE CW. Instead be asleep
-- TODO: Use lock ordering, each lock has a distinct number, if hold a lock, cant get another lock with a highger value lock
-- TODO: Are we using a producer-consumer model? Maybe use a queue??? Marker is producer, student is consumer
-- TODO: Use signal instead of broadcast??
-- TODO: Free after destory
-- TODO: Can we remove the unlock mutex statement after a cond wait statement??
-- TODO: Dont need to lock the mutex when calling braodcast
-- TODO: For broadcast if return error then exit(1)
-- TODO: Move the locking into functions
-- TODO: Move the number_of_available_markers into a semaphore?
-- TODO: Check if err == EINTR, because something might wake us up, note: only with semaphores!
-  while(e = sem_wait(semaphore)) {
-    if(e != EINTR) { abort(); }
-  }
-- TODO: errno is a variable in C that gets reset in the pthread library that gets set when there is an error!
-- TODO: Make a function called safe_wait() w/o checking errors
-- TODO: Maybe change number_of_available_markers to a semaphore?
-  - sem_getvalue() gets the value of the semaphore
 
 ### Build & Run
 

@@ -55,7 +55,7 @@ CC_OPTS=-pthread -Wall -pedantic -Wextra
 
 # First instruction is default
 all: build permissions
-	./$(SOURCE) $(CASE_2)
+	./$(SOURCE) $(CASE_4)
 
 tests:
 	./$(SOURCE) $(CASE_1) && \

@@ -18,8 +18,9 @@ Harry Mumford-Turner
 2. Why your method is correct (or how it could be made correct).
 
 3. Why your method is efficient (or how it could be improved).
-
-  - Using Semaphores!
+- : Use signal instead of broadcast??
+-- using a producer-consumer model? Maybe use a queue??? Marker is producer, student is consumer
+  - Using Semaphores! number_of_available_markers into a semaphore?
 
 Do not include any program trace output in your report. Instead, you need to give a
 convincing argument in English why your program is correct and efficient, or how it could
@@ -27,6 +28,8 @@ be improved.
 
 (max 5000 characters)
 
+
+- Never use Busy waiting, is while(x) { lock(); if(y)x = false; unlock(); } NEVER DO THIS IN THE CW. Instead be asleep
 
 
 - DATARACES ARE BAD
