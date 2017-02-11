@@ -2,8 +2,7 @@
 
 A C solution to the Project Marking Problem.
 
-- todo: commit FOOL
-- TODO: Check resturn statements OF ALL LOCKS AND ALL UNLCOKS!
+- TODO: Check return statements OF ALL LOCKS AND ALL UNLCOKS!
 - TODO: use pthread_mutex_trylock() to see if the thread is locked, if its locked, then unlock it!! add rhis in the final for loops, but dont change it to whenever you lock!
 - TODO: Check the locks are not locked before we lock the mutex!!! Put into functions!
 - TODO: Clean project before submission

@@ -250,7 +250,7 @@ void *marker(void *arg) {
 
 
 /*
- * A student thread. You must modify this function.
+ * A student thread.
  */
 void *student(void *arg) {
     /* The ID of the current student. */
@@ -312,7 +312,7 @@ void *student(void *arg) {
     if(grab_count != parameters.K) {
       pthread_mutex_unlock(&marker_available_mutex);
       DEBUG_PRINT(("> Error something went horribly wrong, we didn't have enough markers for a demo! GrabCount: %d\n", grab_count));
-      return NULL;
+      exit(1);
     }
     number_of_available_markers -= grab_count;
 
@@ -341,7 +341,6 @@ void *student(void *arg) {
     }
     /* Now signal all markers to be free! */
     pthread_cond_broadcast(&demo_end_cv);
-
     pthread_mutex_unlock(&marker_available_mutex);
 
 
