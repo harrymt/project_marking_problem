@@ -491,11 +491,6 @@ void run() {
 
     /* Wait for student threads to finish */
     for (i = 0; i < parameters.S; i++) {
-      /* Signal all students waiting for a session that they have to leave. */
-      safe_broadcast_students_waiting();
-      safe_broadcast_grabbed_waiting();
-      safe_broadcast_demo_end();
-
       DEBUG_PRINT(("> Trying to end student thread %d\n", i));
       if(pthread_join(studentT[i], NULL)) {
         fprintf(stderr, "Error ending student thread student %d\n", i);
@@ -508,12 +503,6 @@ void run() {
 
     /* Wait for marker threads to finish */
     for (i = 0; i < parameters.M; i++) {
-
-      /* Signal all markers waiting to leave, if they haven't started yet. */
-      safe_broadcast_students_waiting();
-      safe_broadcast_grabbed_waiting();
-      safe_broadcast_demo_end();
-
       DEBUG_PRINT(("> Trying to end marker thread %d\n", i));
       if(pthread_join(markerT[i], NULL)) {
         fprintf(stderr, "Error ending student thread marker %d\n", i);
