@@ -1,43 +1,62 @@
-The Project Marking Problem
-Harry Mumford-Turner
+# The Project Marking Problem
+A solution by Harry Mumford-Turner
 
-1. How you solved the problem of synchronizing your threads.
-- For synchronizing threads
-  - Single Mutex
-  - Single condidition
-  - Some global variables
-    - Total number of markers available
-    - Total number of students finished
-    - A list of states for each marker, busy | idle
-    - A list of states for each demo, on | off
-    - A list of markers a student has grabbed
+## 1. How I solved the problem of synchronizing the threads.
 
-- Add if (err) { conditions! }
-  - Added around the starting and ending of threads
+The project marking problem is similar to the Producer Consumer problem, therefore solving this thread synchronization problem is a similar process.
 
-2. Why your method is correct (or how it could be made correct).
+There are 6 critical sections in the program. A critical section is defined as access to a resource shared by multiple threads. Concurrent access to that resource can cause unexpected results and a Data-Race could occur.
 
-3. Why your method is efficient (or how it could be improved).
-- : Use signal instead of broadcast??
--- using a producer-consumer model? Maybe use a queue??? Marker is producer, student is consumer
-  - Using Semaphores! number_of_available_markers into a semaphore?
+### Critical Sections
 
-Do not include any program trace output in your report. Instead, you need to give a
-convincing argument in English why your program is correct and efficient, or how it could
-be improved.
+1. Marker becomes available.
+2. Marker locates the ID of the student that grabbed it.
+3. Marker has finished with all their jobs.
+4. Student is waiting until there are enough markers available.
+5. Student is grabbing the markers.
+6. Student is releasing the markers it grabbed.
 
-(max 5000 characters)
+To prevent a Data-Race, a combination of mutual exclusion objects (Mutex) that allow single access to a shared resource, like an object or variable are used to protect the critical sections. However, locking access to a resource and holding onto it could cause Deadlock to occur. Deadlock is when one thread (Thread A) is trying to access a shared resource (Resource A) that Thread B has locked, but Thread A cannot unlock access to Resource A until the other thread has unlocked access to Resource B that Thread A is trying to access.
+
+The Mutex Objects below lock access to a different shared resource.
+
+### Mutex Objects
+
+- Available Markers, the number of markers that are available to be grabbed by a student.
+- Markers Finished, the number of markers that are finished with their jobs.
+
+Finally to prevent Deadlock, Condition Variables are used, allowing a thread to wait just before a critical section and has to be signalled by another thread before continuing. This allows both threads to process non-critical parts of the program then wait before the critical sections, so access to the critical sections (shared resources) are processed one at a time.
+
+These Condition Variables enable the marker and student threads to wait and sleep to save CPU resources.
+
+### Condition Variables
+
+- Students waiting for enough markers to be available.
+- Markers waiting to be grabbed by students
+- Markers waiting for the demo to end.
+
+Mutex and Condition Variables solved the problem of thread synchronization.
+
+### Overview
+
+When student threads start they wait on a Condition Variable until enough markers are available.
+
+Every time a marker starts, that thread broadcasts its availability to all student threads that wake up to see if enough markers are available for them to proceed. A Mutex lock is used to prevent a Data-Race at this stage.
+
+The first student thread to wake up, grabs the markers and changes their state via an array of marker IDs, where access is locked via a Mutex. This student signals the markers to proceed by signalling all markers to wake up. However, each firsts check to see if they are the ones that should actually be proceeding, by comparing their state with the array of marker IDs.
+
+When the student has enough markers it performs the demo while the markers wait (on a Condition Variable) until the demo has finished. Afterwards the assigned markers state is changed and the student broadcasts all waiting markers to proceed. Again a check occurs, and the marker carries on with its next job, or finishes and sets its state to completed. Before a session has ended, a signal is sent to all marker threads to stop waiting marker threads.
 
 
-- Never use Busy waiting, is while(x) { lock(); if(y)x = false; unlock(); } NEVER DO THIS IN THE CW. Instead be asleep
+## 2. Why is my method correct
+
+To aid the difficulties of debugging a concurrent program, I used multiple print statements enabled via a declaration of a constant. This exposed lots more information and made it easier to visualise the execution. In addition, to catch any unexpected errors, each call to a pthread library function is wrapped in an error checking function.
+
+Testing the correctness of the program was aided by the above steps, in conjunction with tests created in the makefile. These can be run via the makefile command `make tests`, these run through various edge cases to test the program robustness. For the perfect test cases (the tests where all markers and students can complete their tasks in plenty of time), the output for each test case was examined to check if the program finished with 0 errors and that all students completed their demonstrations successfully.
 
 
-- DATARACES ARE BAD
-- IF YOU WANT TO HAVE SOMETHING YOU WANT TO WAIT FOR, YOU WANT TO LOCK OR WAIT UNTIL SOMEONE HAS CLEARED IT OUT FOR YOU
-- ALTERNATIVE METHOD IS TO USE SEMAPHORES!
+## 3. Why is this method efficient
 
+The program is efficient because it does not use any inefficient strategies, for example, Busy Waiting is not used, instead Condition Variables are utilised to sleep the thread to save CPU resources. Mutex locks are used sparingly and are only locked when needed.
 
-
-arr_markers[MARKER_ID] = STUDENT_ID // If -2 then finished jobs, if -1 then available, if positive 0+ then STUDENT_ID
-
-RUN MAKE TESTS TO DO TESTS!
+However, instead of Condition Variables, Semaphores could be used, to act as a counter for the number of markers available. This could reduce the amount of code required to handle synchronization, however, the logical steps are very similar to the current solution.

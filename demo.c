@@ -6,6 +6,9 @@
  * You may create your own global variables and further functions.
  * The code in this skeleton program can be used without citation in the files
  * that you submit for your coursework.
+ *
+ * Author: Harry Mumford-Turner
+ * Based on skeleton code from COMSM2001 cw1.
  */
 
 #include <stdlib.h>
@@ -23,7 +26,7 @@
  * Note: The extra parentheses are necessary, because some older C compilers don't support var-args in macros.
  */
 /* 1: enables extra print statements, 0: disable */
-// #define DEBUG 1
+/* #define DEBUG 1 */
 #ifdef DEBUG
 # define DEBUG_PRINT(x) printf x
 #else
@@ -76,16 +79,18 @@ pthread_cond_t students_waiting_cv;
 pthread_cond_t grabbed_wait_cv;
 
 /*
- * Mutex and condition variable for markers
+ * Condition variable for markers
  * waiting until the demo has ended.
  */
-pthread_mutex_t demo_end_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t demo_end_cv;
 
 /*
  * Array of available markers.
  * arr_markers[studentID][markerID]
- *   arr_markers[MARKER_ID] = STUDENT_ID // If -2 then finished jobs, if -1 then available, if positive 0+ then STUDENT_ID
+ *   arr_markers[MARKER_ID] = STUDENT_ID
+ *  if -2 then finished jobs,
+ *  if -1 then available,
+ *  if positive (0+) then STUDENT_ID
  */
 #define max_markers 100
 int arr_markers[max_markers];
@@ -95,6 +100,15 @@ int arr_markers[max_markers];
  * Denotes the end of the session.
  */
 int session_ended = 0;
+
+/* Methods to safely lock and unlock the mutexes */
+void lock_markers_available();
+void unlock_markers_available();
+void lock_finished_markers();
+void unlock_finished_markers();
+void safe_broadcast_students_waiting();
+void safe_broadcast_grabbed_waiting();
+void safe_broadcast_demo_end();
 
 /*
  * timenow(): returns current simulated time in "minutes" (cs).
@@ -128,89 +142,6 @@ void demo() {
     delay(parameters.D);
 }
 
-void debug_delay() {
-    delay(10); // Delay for 2 mins
-}
-
-/* Debug function that prints out the current marker state */
-void debug_print_current_marker_state() {
-  for(int i = 0; i < parameters.M; i++) {
-    DEBUG_PRINT(("%d >>>> arr_markers[%d] = studentID/available: %d\n", timenow(), i, arr_markers[i]));
-  }
-}
-
-/* Safe Locking/Unlocking methods */
-void lock_markers_available() {
-  int err = pthread_mutex_lock(&marker_available_mutex);
-  if(err != 0) {
-    DEBUG_PRINT(("%d lock_markers_available() return error %d \n", timenow(), err));
-    exit(1);
-  }
-}
-
-void unlock_markers_available() {
-  int err = pthread_mutex_unlock(&marker_available_mutex);
-  if(err != 0) {
-    DEBUG_PRINT(("%d unlock_markers_available() return error %d \n", timenow(), err));
-    exit(1);
-  }
-}
-
-void lock_finished_markers() {
-  int err = pthread_mutex_lock(&finished_markers_mutex);
-  if(err != 0) {
-    DEBUG_PRINT(("%d lock_finished_markers() return error %d \n", timenow(), err));
-    exit(1);
-  }
-}
-
-void unlock_finished_markers() {
-  int err = pthread_mutex_unlock(&finished_markers_mutex);
-  if(err != 0) {
-    DEBUG_PRINT(("%d unlock_finished_markers() return error %d \n", timenow(), err));
-    exit(1);
-  }
-}
-
-void lock_demo_end() {
-  int err = pthread_mutex_lock(&demo_end_mutex);
-  if(err != 0) {
-    DEBUG_PRINT(("%d lock_demo_end() return error %d \n", timenow(), err));
-    exit(1);
-  }
-}
-
-void unlock_demo_end() {
-  int err = pthread_mutex_unlock(&demo_end_mutex);
-  if(err != 0) {
-    DEBUG_PRINT(("%d unlock_demo_end() return error %d \n", timenow(), err));
-    exit(1);
-  }
-}
-
-void safe_broadcast_students_waiting() {
-  int err = pthread_cond_broadcast(&students_waiting_cv);
-  if(err != 0) {
-    DEBUG_PRINT(("%d safe_broadcast_students_waiting() return error %d \n", timenow(), err));
-    exit(1);
-  }
-}
-
-void safe_broadcast_grabbed_waiting() {
-  int err = pthread_cond_broadcast(&grabbed_wait_cv);
-  if(err != 0) {
-    DEBUG_PRINT(("%d safe_broadcast_grabbed_waiting() return error %d \n", timenow(), err));
-    exit(1);
-  }
-}
-
-void safe_broadcast_demo_end() {
-  int err = pthread_cond_broadcast(&demo_end_cv);
-  if(err != 0) {
-    DEBUG_PRINT(("%d safe_broadcast_demo_end() return error %d \n", timenow(), err));
-    exit(1);
-  }
-}
 
 /*
  * A marker thread. You need to modify this function.
@@ -227,7 +158,7 @@ void *marker(void *arg) {
      * marker is grabbed - and before the printf statements referencing it are
      * executed.
      */
-    int studentID = 0;/* arr_markers[markerID] == Student ID or -1 or -2 */
+    int studentID = 0;
 
     /* 1. Enter the lab. */
     printf("%d marker %d: enters lab\n", timenow(), markerID);
@@ -273,29 +204,27 @@ void *marker(void *arg) {
         }
       }
 
+      unlock_markers_available();
+
       if(session_ended) {
         DEBUG_PRINT(("%d marker %d: Session Ended, freeing marker (job %d)\n", timenow(), markerID, job));
         break;
       }
 
-      unlock_markers_available();
-
 
       /* Get the student ID who grabbed us */
-      /* arr_markers[markerID] == Student ID or -1 or -2 */
       lock_markers_available();
+      /* arr_markers[markerID] == Student ID or -1 or -2 */
       studentID = arr_markers[markerID];
       if(arr_markers[markerID] == -1) {
-        printf("%d marker %d: SOMETHING WENT WRONG student %d (job %d)\n", timenow(), markerID, studentID, job + 1);
         unlock_markers_available();
+        printf("%d marker %d: SOMETHING WENT WRONG student %d (job %d)\n", timenow(), markerID, studentID, job + 1);
         break;
       }
       unlock_markers_available();
 
       /* The following line shall be printed when a marker is grabbed by a student. */
       printf("%d marker %d: grabbed by student %d (job %d)\n", timenow(), markerID, studentID, job + 1);
-
-
 
 
 
@@ -309,14 +238,14 @@ void *marker(void *arg) {
        *     Do not just wait a given time
        *     let the student signal when the demo is over.
        */
-       lock_demo_end();
-       if(ETIMEDOUT == pthread_cond_wait(&demo_end_cv, &demo_end_mutex)) {
-        unlock_demo_end();
+       lock_markers_available();
+       if(ETIMEDOUT == pthread_cond_wait(&demo_end_cv, &marker_available_mutex)) {
+        unlock_markers_available();
         printf("%d marker %d: exits lab (timeout)\n", timenow(), markerID);
         break;
       }
       if(timenow() > parameters.T) { /* If time has run out */
-        unlock_demo_end();
+        unlock_markers_available();
         DEBUG_PRINT(("%d marker %d: Timed out during demo! (job %d)\n", timenow(), markerID, job));
         printf("%d marker %d: exits lab (timeout)\n", timenow(), markerID);
         break;
@@ -325,14 +254,16 @@ void *marker(void *arg) {
        /* The following line shall be printed when a marker has finished attending a demo. */
        printf("%d marker %d: finished with student %d (job %d)\n", timenow(), markerID, studentID, job + 1);
 
-       unlock_demo_end();
+       unlock_markers_available();
 
       /*
        *  (d) Exit the lab when all jobs have been completed
        */
     }
 
+    lock_markers_available();
     arr_markers[markerID] = -2; /* Marker has left the building (lab) */
+    unlock_markers_available();
 
     /*
      * When the marker exits the lab, exactly one of the following two lines shall be
@@ -426,7 +357,6 @@ void *student(void *arg) {
      * and the student proceeds to step 5.
      */
     printf("%d student %d: starts demo\n", timenow(), studentID);
-    debug_print_current_marker_state();
     demo();
     printf("%d student %d: ends demo\n", timenow(), studentID);
 
@@ -457,7 +387,6 @@ void run() {
     /* Initialize mutex and condition variable objects */
     pthread_mutex_init(&marker_available_mutex, NULL);
     pthread_mutex_init(&finished_markers_mutex, NULL);
-    pthread_mutex_init(&demo_end_mutex, NULL);
     pthread_cond_init (&students_waiting_cv, NULL);
     pthread_cond_init (&grabbed_wait_cv, NULL);
     pthread_cond_init (&demo_end_cv, NULL);
@@ -541,7 +470,6 @@ void run() {
     /* Cleanup and exit */
     pthread_mutex_destroy(&marker_available_mutex);
     pthread_mutex_destroy(&finished_markers_mutex);
-    pthread_mutex_destroy(&demo_end_mutex);
     pthread_cond_destroy(&students_waiting_cv);
     pthread_cond_destroy(&grabbed_wait_cv);
     pthread_cond_destroy(&demo_end_cv);
@@ -576,9 +504,67 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    // We're good to go.
+    /* We're good to go. */
 
     run();
 
     return 0;
+}
+
+
+/* Safe Locking/Unlocking methods */
+void lock_markers_available() {
+  int err = pthread_mutex_lock(&marker_available_mutex);
+  if(err != 0) {
+    DEBUG_PRINT(("%d lock_markers_available() return error %d \n", timenow(), err));
+    exit(1);
+  }
+}
+
+void unlock_markers_available() {
+  int err = pthread_mutex_unlock(&marker_available_mutex);
+  if(err != 0) {
+    DEBUG_PRINT(("%d unlock_markers_available() return error %d \n", timenow(), err));
+    exit(1);
+  }
+}
+
+void lock_finished_markers() {
+  int err = pthread_mutex_lock(&finished_markers_mutex);
+  if(err != 0) {
+    DEBUG_PRINT(("%d lock_finished_markers() return error %d \n", timenow(), err));
+    exit(1);
+  }
+}
+
+void unlock_finished_markers() {
+  int err = pthread_mutex_unlock(&finished_markers_mutex);
+  if(err != 0) {
+    DEBUG_PRINT(("%d unlock_finished_markers() return error %d \n", timenow(), err));
+    exit(1);
+  }
+}
+
+void safe_broadcast_students_waiting() {
+  int err = pthread_cond_broadcast(&students_waiting_cv);
+  if(err != 0) {
+    DEBUG_PRINT(("%d safe_broadcast_students_waiting() return error %d \n", timenow(), err));
+    exit(1);
+  }
+}
+
+void safe_broadcast_grabbed_waiting() {
+  int err = pthread_cond_broadcast(&grabbed_wait_cv);
+  if(err != 0) {
+    DEBUG_PRINT(("%d safe_broadcast_grabbed_waiting() return error %d \n", timenow(), err));
+    exit(1);
+  }
+}
+
+void safe_broadcast_demo_end() {
+  int err = pthread_cond_broadcast(&demo_end_cv);
+  if(err != 0) {
+    DEBUG_PRINT(("%d safe_broadcast_demo_end() return error %d \n", timenow(), err));
+    exit(1);
+  }
 }
