@@ -42,7 +42,7 @@ CASE_4=50 10 2 200 150 2
 
 
 # Can add -O3 to add optimisations // -l pthread // std=c99
-CC_OPTS=-pthread -Wall -pedantic -Wextra
+CC_OPTS=-pthread -Wall -Wextra
 
 # First instruction is default
 all: build
