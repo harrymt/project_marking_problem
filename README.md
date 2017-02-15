@@ -1,16 +1,13 @@
 ## Project Marking Problem
 
-A C solution to the Project Marking Problem.
-TODO
-  - Test to see if we can remove any print statements from mutex locks, e.g. use local variables
-  - Clean project
-
+A C solution to the Project Marking Problem, full outline available [here](overview.pdf).
 
 ### Build & Run
 
 - Ensure Make & gcc is installed on your system
 - `make` to build
 - `./demo` to run
+- `make tests` to run tests
 
 
 ### Program Overview
@@ -66,12 +63,3 @@ The session lasts T minutes and each demonstration takes exactly D minutes. Stud
 - Students enter at random intervals during a session except in last D mins
 
 All markers are on duty at the beginning of the session and each remains there until they have attended N demos or the session ends. At the end of the session all students and markers must leave the lab. Moreover, any students and markers who are not actively involved in a demo D minutes before the end must leave at that time, because there would be no time to complete a demo that started later. Whenever a student enters the lab, they start by finding K idle markers (one at a time). If there are any markers available, they will be "grabbed" by the student. Having grabbed K markers, the student does the demo and then leaves the lab. Each marker stays idle until grabbed by a student, waits until other idle markers are found (during which time the marker cannot be grabbed by other students), attends the demo and then becomes idle again, leaving the lab after attending N demos.
-
-
-# Marking
-
-- Dont submit compiled program
-- Test on LAB machines
-- Don't use busy-waiting
-
-
