@@ -41,11 +41,13 @@ CASE_3=1 1 1 3 3 2
 CASE_4=50 10 2 200 150 2
 
 
-# Can add -O3 to add optimisations // -l pthread // std=c99
+# C compiler optimisations and warnings
 CC_OPTS=-pthread -Wall -Wextra
 
 # First instruction is default
-all: build
+default: build
+
+run: build permissions
 	./$(SOURCE) $(PARAMETERS)
 
 tests: permissions
