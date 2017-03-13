@@ -70,23 +70,15 @@ All markers are on duty at the beginning of the session and each remains there u
 
 > Good and detailed report.
 
-### Issue 1
-
-> In line 196, you won't get an ETIMEDOUT from a normal wait (only _timedwait does that) but you may get other errors such as EINTR (got a POSIX signal). I'd just test the return value for being non-zero here.
-
-### Improvement 1
-
-> I like your idea to have helper functions for the locks and error handling. For the code in lines 279-281 for example you could even go a step further and have a function void increment_finished_markers() that does those three steps in one.
-
-### Issue 2
+### [Issue 1](https://github.com/harrymt/project_marking_problem/issues/2)
 
 > In line 242, you don't have a predicate loop so there's a risk of spurious wakeup. I think this might also be related to the following problem.
 
-### Issue 3
+### [Issue 2](https://github.com/harrymt/project_marking_problem/issues/3)
 
 > When there is a timeout, your program sometimes deadlocks if a student enters the lab with enough time to start a demo, but there's no markers available. Suppose a demo takes 5 minutes and the last student enters at time (T-6) and there's still markers around, but they're all busy. In line 317 the student waits on the students_waiting_cv variable. Now suppose that the remaining markers finish their marking at time (T-3), which is too late for a demo to start so they exit with a timeout at line 244. This means they never signal students_waiting_cv (line 191) as this would only happen in the next pass through the loop. The result is the the main thread's pthread_join and the waiting student thread deadlock.
 
-### Issue 4
+### [Issue 3](https://github.com/harrymt/project_marking_problem/issues/4)
 
 > There's also some cases where (I think due to spurious wakeups) a marker can declare end of demo while the student is still in the middle of it, as in this output:
 
