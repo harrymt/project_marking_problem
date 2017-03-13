@@ -109,6 +109,7 @@ void unlock_finished_markers();
 void safe_broadcast_students_waiting();
 void safe_broadcast_grabbed_waiting();
 void safe_broadcast_demo_end();
+void increment_finished_markers();
 
 /*
  * timenow(): returns current simulated time in "minutes" (cs).
@@ -276,9 +277,7 @@ void *marker(void *arg) {
         printf("%d marker %d: exits lab (timeout)\n", timenow(), markerID);
     }
 
-    lock_finished_markers();
-    number_of_finished_markers++;
-    unlock_finished_markers();
+    increment_finished_markers();
 
     return NULL;
 }
@@ -567,4 +566,10 @@ void safe_broadcast_demo_end() {
     DEBUG_PRINT(("%d safe_broadcast_demo_end() return error %d \n", timenow(), err));
     exit(1);
   }
+}
+
+void increment_finished_markers() {
+  lock_finished_markers();
+  number_of_finished_markers++;
+  unlock_finished_markers();
 }
