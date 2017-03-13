@@ -194,7 +194,7 @@ void *marker(void *arg) {
       /* While we are waiting */
       while(arr_markers[markerID] == -1) {
         /* (a) Wait to be grabbed by a student. */
-        if(ETIMEDOUT == pthread_cond_wait(&grabbed_wait_cv, &marker_available_mutex)) {
+        if(pthread_cond_wait(&grabbed_wait_cv, &marker_available_mutex) != 0) {
           unlock_markers_available();
           break;
         }
