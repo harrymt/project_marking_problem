@@ -1,6 +1,6 @@
 ## Project Marking Problem
 
-A C solution to the Project Marking Problem, full outline available [here](overview.pdf).
+A C solution to the Project Marking Problem, similar to the producer consumer problem, full outline available [here](overview.pdf).
 
 ### Build & Run
 
